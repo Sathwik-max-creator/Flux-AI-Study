@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyAI | Fully Functional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow: hidden;
+        }
+
+        .sidebar-dark {
+            background: #0f172a;
+        }
+
+        /* THE FIX: Functional 3D Flip */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        /* This class is toggled by JavaScript */
+        .is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        .backface-hidden {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+
+        .msg-anim {
+            animation: slideUp 0.3s ease-out forwards;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-[#fcfcfd] text-slate-900">
+
+    <div class="flex h-screen w-full">
+
+        <aside class="w-64 sidebar-dark text-slate-400 flex flex-col shadow-2xl z-40">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-8 text-white">
+                    <div
+                        class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                        <i class="fas fa-brain text-sm"></i>
+                    </div>
+                    <span class="font-bold text-lg tracking-tight">StudyAI</span>
+                </div>
+                <nav id="subject-list" class="space-y-1">
+                </nav>
+                <button onclick="toggleModal(true)"
+                    class="w-full mt-4 flex items-center px-4 py-2 text-xs font-bold hover:text-white transition">
+                    <i class="fas fa-plus mr-2"></i> Add Subject
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col relative bg-white border-r border-slate-100">
+            <header class="h-16 flex items-center justify-between px-8 border-b border-slate-50">
+                <h2 id="active-title" class="font-bold text-slate-800 text-sm uppercase tracking-widest">Active Session
+                </h2>
+                <div class="flex items-center space-x-2">
+                    <span class="text-[10px] font-bold text-green-500 uppercase tracking-widest">AI Connected</span>
+                </div>
+            </header>
+
+            <div id="chat-container" class="flex-1 overflow-y-auto p-8 space-y-6 pb-32">
+                <div class="flex flex-col items-center justify-center h-full text-slate-300">
+                    <p class="text-sm">Select a subject to start your session.</p>
+                </div>
+            </div>
+
+            <div class="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white to-transparent">
+                <div
+                    class="max-w-2xl mx-auto flex items-center bg-white rounded-2xl border border-slate-200 shadow-xl p-1.5">
+                    <input type="text" id="user-input" placeholder="Ask a question..."
+                        class="flex-1 px-4 py-3 outline-none text-sm">
+                    <button id="send-btn" onclick="handleSendMessage()"
+                        class="bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-indigo-700 transition">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <aside class="w-80 bg-slate-50 flex flex-col shadow-inner">
+            <div class="p-6 border-b border-slate-200 bg-white flex justify-between items-center">
+                <h3 class="font-bold text-xs text-slate-800 uppercase tracking-widest">Deck</h3>
+                <span id="card-count" class="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full">0</span>
+            </div>
+
+            <div id="card-list" class="flex-1 overflow-y-auto p-5 space-y-4">
+            </div>
+        </aside>
+
+    </div>
+
+    <div id="modal"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center z-[60]">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-sm shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">New Subject</h3>
+            <input type="text" id="subject-name-input"
+                class="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl mb-6 outline-none"
+                placeholder="e.g. History">
+            <button onclick="addSubject()"
+                class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">Create</button>
+        </div>
+    </div>
+
+    <script>
+        let subjects = [
+            { id: '1', name: 'Quantum Physics', icon: 'fa-atom', history: [], cards: [] }
+        ];
+        let activeId = null;
+
+        function renderSubjects() {
+            const list = document.getElementById('subject-list');
+            list.innerHTML = '';
+            subjects.forEach(s => {
+                const active = s.id === activeId;
+                list.innerHTML += `
+                    <button onclick="selectSubject('${s.id}')" class="w-full flex items-center px-4 py-3 rounded-xl transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-slate-800 hover:text-white'}">
+                        <i class="fas ${s.icon} mr-3 w-4"></i><span class="font-semibold text-xs truncate">${s.name}</span>
+                    </button>`;
+            });
+        }
+
+        function selectSubject(id) {
+            activeId = id;
+            const sub = subjects.find(s => s.id === id);
+            document.getElementById('active-title').innerText = sub.name;
+            document.getElementById('card-count').innerText = sub.cards.length;
+            renderSubjects();
+            renderChat();
+            renderCards();
+        }
+
+        function toggleModal(show) { document.getElementById('modal').classList.toggle('hidden', !show); }
+
+        function addSubject() {
+            const name = document.getElementById('subject-name-input').value;
+            if (name) {
+                const newSub = { id: Date.now().toString(), name, icon: 'fa-book', history: [], cards: [] };
+                subjects.push(newSub);
+                renderSubjects();
+                toggleModal(false);
+                document.getElementById('subject-name-input').value = '';
+                selectSubject(newSub.id);
+            }
+        }
+
+        // --- FLASHCARD ENGINE ---
+        function renderCards() {
+            const list = document.getElementById('card-list');
+            const sub = subjects.find(s => s.id === activeId);
+            if (!sub) return;
+
+            list.innerHTML = sub.cards.length ? '' : '<p class="text-center text-[10px] text-slate-400 mt-10">AI will generate cards as you chat.</p>';
+
+            sub.cards.forEach((c, index) => {
+                list.innerHTML += `
+                    <div class="h-40 w-full perspective-1000 msg-anim">
+                        <div class="card-inner" onclick="this.classList.toggle('is-flipped')">
+                            <div class="backface-hidden bg-white border border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center shadow-sm hover:border-indigo-200 transition">
+                                <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest mb-2">Question</span>
+                                <p class="text-xs font-bold text-slate-700 leading-tight">${c.q}</p>
+                            </div>
+                            <div class="backface-hidden rotate-y-180 bg-indigo-600 rounded-2xl p-6 flex flex-col items-center justify-center text-center shadow-lg">
+                                <span class="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-2">Answer</span>
+                                <p class="text-[11px] font-medium text-white leading-relaxed">${c.a}</p>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function renderChat() {
+            const container = document.getElementById('chat-container');
+            const sub = subjects.find(s => s.id === activeId);
+            container.innerHTML = '';
+            sub.history.forEach(m => {
+                const isAi = m.type === 'ai';
+                container.innerHTML += `
+                    <div class="flex ${isAi ? 'justify-start' : 'justify-end'} msg-anim">
+                        <div class="${isAi ? 'bg-slate-100 text-slate-800' : 'bg-indigo-600 text-white shadow-md'} p-4 rounded-2xl max-w-md text-sm leading-relaxed">
+                            ${m.text}
+                        </div>
+                    </div>`;
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function handleSendMessage() {
+            const input = document.getElementById('user-input');
+            const btn = document.getElementById('send-btn');
+            const text = input.value.trim();
+            if (!text || !activeId) return;
+
+            const sub = subjects.find(s => s.id === activeId);
+            sub.history.push({ type: 'user', text });
+            input.value = '';
+            renderChat();
+
+            btn.disabled = true;
+
+            try {
+                // IMPORTANT: Requires the server.js provided earlier
+                // REPLACE THIS SECTION:
+                const response = await fetch('http://127.0.0.1:3000/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: text + " (If you explain a key concept, end with Concept: [Name] | Definition: [Short explanation])",
+                        subject: sub.name
+                    })
+                });
+
+                const data = await response.json();
+                let aiText = data.text;
+
+                // Extraction Logic
+                if (aiText.includes("Concept:") && aiText.includes("| Definition:")) {
+                    const parts = aiText.split("Concept:")[1].split("| Definition:");
+                    sub.cards.unshift({ q: parts[0].trim(), a: parts[1].trim() });
+                    aiText = aiText.split("Concept:")[0].trim();
+                    document.getElementById('card-count').innerText = sub.cards.length;
+                    renderCards();
+                }
+
+                sub.history.push({ type: 'ai', text: aiText });
+            } catch (err) {
+                sub.history.push({ type: 'ai', text: "Connection error. Make sure your local server is running." });
+            } finally {
+                btn.disabled = false;
+                renderChat();
+            }
+        }
+
+        renderSubjects();
+        document.getElementById('user-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSendMessage(); });
+    </script>
+</body>
+
+</html>
